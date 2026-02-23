@@ -1,7 +1,14 @@
-# AlgoViz — Interactive Algorithm Visualizer
+# AlgoViz - Interactive Algorithm Visualizer
 
 A production-quality, dependency-free algorithm visualizer.  
 **15 algorithms. Step-through animation. Dark/light theme. Zero build step.**
+
+
+## Built With
+* [![HTML5][HTML5.org]][HTML5-url]
+* [![CSS3][CSS3.org]][CSS3-url]
+* [![JavaScript][JavaScript.com]][JavaScript-url]
+
 
 ---
 
@@ -113,3 +120,13 @@ npx serve .
 python -m http.server 8080
 php -S localhost:8080
 ```
+
+<!-- MARKDOWN LINKS & IMAGES -->
+[HTML5.org]: https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white
+[HTML5-url]: https://developer.mozilla.org/en-US/docs/Web/HTML
+
+[CSS3.org]: https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white
+[CSS3-url]: https://developer.mozilla.org/en-US/docs/Web/CSS
+
+[JavaScript.com]: https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black
+[JavaScript-url]: https://developer.mozilla.org/en-US/docs/Web/JavaScript
