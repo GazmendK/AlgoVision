@@ -1,0 +1,226 @@
+/* ============================================================
+   INFO PANEL — Right sidebar with tabs
+   Tab bar, Info / Steps / Code content areas,
+   Complexity grid, Step list, Code block with syntax colors,
+   Modal overlay and form elements
+   ============================================================ */
+
+/* ── Tab Bar ── */
+.info-tabs {
+  display:     flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.info-tab {
+  flex:           1;
+  padding:        10px 4px;
+  background:     none;
+  border:         none;
+  color:          var(--text-muted);
+  font-family:    var(--font-mono);
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor:         pointer;
+  transition:     all var(--transition);
+  border-bottom:  2px solid transparent;
+}
+
+.info-tab:hover { color: var(--text-primary); background: var(--bg-2); }
+.info-tab.active { color: var(--accent-cyan); border-bottom-color: var(--accent-cyan); }
+
+/* ── Tab Content Panes ── */
+.info-content        { display: none; padding: 16px; }
+.info-content.active { display: block; }
+
+/* ── Info Sections ── */
+.info-section { margin-bottom: 16px; }
+
+.info-section-title {
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color:          var(--text-muted);
+  margin-bottom:  6px;
+  display:        flex;
+  align-items:    center;
+  gap:            4px;
+}
+
+/* Decorative divider line after title */
+.info-section-title::after {
+  content:    '';
+  flex:       1;
+  height:     1px;
+  background: var(--border);
+}
+
+.info-text { color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
+
+/* ── Complexity Grid ── */
+.complexity-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   6px;
+}
+
+.complexity-item {
+  background:    var(--bg-2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  padding:       8px;
+}
+
+.complexity-item .label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+.complexity-item .value { font-size: 13px; font-weight: 700; color: var(--accent-cyan); }
+
+/* Colour-coded complexity values */
+.complexity-item .value.red    { color: var(--accent-orange); }
+.complexity-item .value.yellow { color: var(--accent-yellow); }
+.complexity-item .value.green  { color: var(--accent-green); }
+
+/* ── Steps List ── */
+.steps-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+}
+
+.step-item {
+  display:       flex;
+  gap:           10px;
+  padding:       8px;
+  border-radius: var(--radius);
+  background:    var(--bg-2);
+  border:        1px solid var(--border);
+  transition:    all 0.2s;
+}
+
+.step-item.active-step {
+  border-color: var(--accent-cyan);
+  background:   rgba(57, 208, 216, 0.05);
+}
+
+.step-num {
+  width:           20px;
+  height:          20px;
+  border-radius:   50%;
+  background:      var(--bg-3);
+  border:          1px solid var(--border);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       10px;
+  font-weight:     700;
+  flex-shrink:     0;
+  color:           var(--text-muted);
+}
+
+.step-item.active-step .step-num {
+  background:   var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  color:        #000;
+}
+
+.step-text { font-size: 11px; color: var(--text-secondary); line-height: 1.6; }
+
+/* ── Code Block ── */
+.code-block {
+  background:    var(--bg-0);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  overflow:      auto;
+  font-family:   var(--font-mono);
+  font-size:     11px;
+  line-height:   1.8;
+}
+
+.code-line {
+  padding:     0 12px;
+  color:       var(--text-secondary);
+  white-space: pre;
+  transition:  all 0.15s;
+}
+
+.code-line.highlight {
+  background:   rgba(57, 208, 216, 0.12);
+  color:        var(--text-primary);
+  border-left:  2px solid var(--accent-cyan);
+}
+
+/* Syntax token colours */
+.code-line .kw  { color: var(--accent-purple); }
+.code-line .fn  { color: var(--accent-blue); }
+.code-line .num { color: var(--accent-orange); }
+.code-line .cm  { color: var(--text-muted); font-style: italic; }
+.code-line .str { color: var(--accent-green); }
+
+/* ── Modal Overlay ── */
+.modal-overlay {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0, 0, 0, 0.7);
+  z-index:         100;
+  display:         none;
+  align-items:     center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background:    var(--bg-1);
+  border:        1px solid var(--border);
+  border-radius: 10px;
+  padding:       24px;
+  width:         460px;
+  max-width:     90vw;
+  box-shadow:    0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.modal-title {
+  font-family:    var(--font-display);
+  font-size:      22px;
+  letter-spacing: 1px;
+  margin-bottom:  16px;
+  color:          var(--text-primary);
+}
+
+/* ── Form Elements ── */
+.form-group { margin-bottom: 12px; }
+
+.form-label {
+  display:        block;
+  font-size:      11px;
+  color:          var(--text-muted);
+  margin-bottom:  4px;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  width:         100%;
+  padding:       8px 12px;
+  background:    var(--bg-2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  color:         var(--text-primary);
+  font-family:   var(--font-mono);
+  font-size:     13px;
+  outline:       none;
+  transition:    border-color var(--transition);
+}
+
+.form-input:focus { border-color: var(--accent-cyan); }
+
+.modal-actions {
+  display:         flex;
+  gap:             8px;
+  margin-top:      16px;
+  justify-content: flex-end;
+}

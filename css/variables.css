@@ -1,0 +1,61 @@
+/* ============================================================
+   DESIGN TOKENS — CSS Custom Properties
+   Single source of truth for all colors, spacing, and fonts.
+   Every other CSS file references these variables only.
+   ============================================================ */
+
+:root {
+  /* Background scale (darkest → lightest surface) */
+  --bg-0: #070b0f;
+  --bg-1: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #21262d;
+  --bg-4: #2d333b;
+
+  /* Borders */
+  --border: #30363d;
+
+  /* Text scale */
+  --text-primary:   #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted:     #484f58;
+
+  /* Accent palette */
+  --accent-cyan:   #39d0d8;
+  --accent-green:  #3fb950;
+  --accent-orange: #f78166;
+  --accent-yellow: #d29922;
+  --accent-purple: #bc8cff;
+  --accent-blue:   #58a6ff;
+
+  /* Glow shadows */
+  --glow-cyan:  0 0 20px rgba(57, 208, 216, 0.3);
+  --glow-green: 0 0 20px rgba(63, 185, 80,  0.3);
+
+  /* Layout dimensions */
+  --sidebar-w: 260px;
+  --info-w:    320px;
+  --header-h:  56px;
+
+  /* Typography */
+  --font-mono:    'JetBrains Mono', 'Space Mono', monospace;
+  --font-display: 'Bebas Neue', sans-serif;
+
+  /* Motion & shape */
+  --transition: 0.15s ease;
+  --radius:     6px;
+}
+
+/* ── Light Mode overrides ── */
+body.light {
+  --bg-0:   #f0f2f5;
+  --bg-1:   #ffffff;
+  --bg-2:   #f6f8fa;
+  --bg-3:   #eaeef2;
+  --bg-4:   #d0d7de;
+  --border: #d0d7de;
+
+  --text-primary:   #1f2328;
+  --text-secondary: #656d76;
+  --text-muted:     #9198a1;
+}

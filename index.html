@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlgoVision — Interactive Algorithm Visualizer</title>
+
+    <link
+            href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;700&display=swap"
+            rel="stylesheet">
+
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/visualizations.css">
+    <link rel="stylesheet" href="css/info-panel.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <header class="header">
+        <div class="logo">Algo<span>Vision</span></div>
+        <div class="header-tagline">Interactive Algorithm Visualizer</div>
+        <div class="header-controls">
+            <button class="btn btn-icon" id="btn-input" title="Custom Input">✎ Input</button>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">☀</button>
+        </div>
+    </header>
+
+    <nav class="sidebar">
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">🔄 Sorting</div>
+            <button class="algo-btn" data-algo="bubble">Bubble Sort <span class="tag">O(n²)</span></button>
+            <button class="algo-btn" data-algo="selection">Selection Sort <span class="tag">O(n²)</span></button>
+            <button class="algo-btn" data-algo="insertion">Insertion Sort <span class="tag">O(n²)</span></button>
+            <button class="algo-btn" data-algo="merge">Merge Sort <span class="tag">O(n log n)</span></button>
+            <button class="algo-btn" data-algo="quick">Quick Sort <span class="tag">O(n log n)</span></button>
+            <button class="algo-btn" data-algo="heap">Heap Sort <span class="tag">O(n log n)</span></button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">🌐 Graph</div>
+            <button class="algo-btn" data-algo="bfs">BFS <span class="tag">O(V+E)</span></button>
+            <button class="algo-btn" data-algo="dfs">DFS <span class="tag">O(V+E)</span></button>
+            <button class="algo-btn" data-algo="dijkstra">Dijkstra <span class="tag">O(V²)</span></button>
+            <button class="algo-btn" data-algo="astar">A* Search <span class="tag">O(E log V)</span></button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">🌲 Trees</div>
+            <button class="algo-btn" data-algo="bst">Binary Search Tree <span class="tag">O(log n)</span></button>
+            <button class="algo-btn" data-algo="avl">AVL Tree <span class="tag">O(log n)</span></button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">🧠 Other</div>
+            <button class="algo-btn" data-algo="binarysearch">Binary Search <span class="tag">O(log n)</span></button>
+            <button class="algo-btn" data-algo="fibonacci">Fibonacci DP <span class="tag">O(n)</span></button>
+            <button class="algo-btn" data-algo="knapsack">0/1 Knapsack <span class="tag">O(nW)</span></button>
+        </div>
+
+    </nav>
+
+    <main class="main">
+
+        <div class="controls-bar">
+            <div class="algo-title" id="algo-title">Select an Algorithm</div>
+            <div class="complexity-badge" id="complexity-badge" style="display:none"></div>
+            <div class="controls-right">
+                <div class="speed-control">
+                    <span>Speed:</span>
+                    <input type="range" id="speed-slider" min="1" max="10" value="5">
+                    <span id="speed-label">5x</span>
+                </div>
+                <button class="btn" id="btn-step" disabled title="Step back">⏮</button>
+                <button class="btn btn-primary" id="btn-play" disabled>▶ Play</button>
+                <button class="btn" id="btn-next" disabled title="Step forward">⏭</button>
+                <button class="btn btn-danger" id="btn-reset" disabled>↺ Reset</button>
+            </div>
+        </div>
+
+        <div class="graph-input-bar" id="graph-input-bar" style="display:none;">
+            <span style="color:var(--text-muted); font-size:11px;">Start Node:</span>
+            <select class="node-select" id="start-node-select"></select>
+            <span style="color:var(--text-muted); font-size:11px; margin-left:8px;">End Node (optional):</span>
+            <select class="node-select" id="end-node-select"><option value="">—</option></select>
+            <button class="btn" id="btn-apply-graph">Apply</button>
+        </div>
+
+        <div class="stats-bar" id="stats-bar" style="display:none;">
+            <div class="stat-item">
+                <span class="stat-label">Comparisons:</span>
+                <span class="stat-value" id="stat-cmp">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Swaps:</span>
+                <span class="stat-value" id="stat-swp">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Steps:</span>
+                <span class="stat-value" id="stat-step">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Array Size:</span>
+                <span class="stat-value" id="stat-size">—</span>
+            </div>
+        </div>
+
+        <div class="legend" id="legend" style="display:none;"></div>
+
+        <div class="current-step-display" id="current-step-msg" style="display:none;">
+            Select an algorithm and press Play to begin.
+        </div>
+
+        <div class="viz-area" id="viz-area">
+
+            <div class="viz-placeholder" id="viz-placeholder">
+                <div class="big-icon">⚡</div>
+                <div style="font-family:var(--font-display); font-size:20px; color:var(--text-secondary);">
+                    Choose an Algorithm
+                </div>
+                <div>Select from the sidebar to start visualizing</div>
+            </div>
+
+            <div id="sort-container" style="display:none;"></div>
+
+            <div id="canvas-container">
+                <canvas id="viz-canvas"></canvas>
+            </div>
+
+            <div id="other-container"></div>
+
+        </div>
+
+    </main>
+
+    <aside class="info-panel" id="info-panel">
+
+        <div class="info-tabs">
+            <button class="info-tab active" data-tab="info">📖 Info</button>
+            <button class="info-tab" data-tab="steps">🪜 Steps</button>
+            <button class="info-tab" data-tab="code">💻 Code</button>
+        </div>
+
+        <div class="info-content active" id="tab-info">
+            <div style="color:var(--text-muted); font-size:12px; text-align:center; padding:40px 0;">
+                Select an algorithm to view its details.
+            </div>
+        </div>
+
+        <div class="info-content" id="tab-steps">
+            <div class="steps-list" id="steps-list"></div>
+        </div>
+
+        <div class="info-content" id="tab-code">
+            <div class="code-block" id="code-block"></div>
+        </div>
+
+    </aside>
+
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+        <div class="modal-title" id="modal-title">Custom Input</div>
+        <div id="modal-body"></div>
+        <div class="modal-actions">
+            <button class="btn" id="modal-cancel">Cancel</button>
+            <button class="btn btn-primary" id="modal-apply">Apply</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/data/algorithms.js"></script>
+<script src="js/algorithms/sorting.js"></script>
+<script src="js/algorithms/graph.js"></script>
+<script src="js/algorithms/other.js"></script>
+<script src="js/engine/trees.js"></script>
+<script src="js/engine/AnimationEngine.js"></script>
+<script src="js/renderers/SortingVisualizer.js"></script>
+<script src="js/renderers/CanvasRenderer.js"></script>
+<script src="js/App.js"></script>
+
+</body>
+</html>
