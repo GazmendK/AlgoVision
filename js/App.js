@@ -1,15 +1,15 @@
-
-
-
-
-
-
-
-
-
-
-
-
+// ============================================================
+// APP CONTROLLER
+//
+// The central orchestrator. Wires together:
+//   - Algorithm selection (sidebar)
+//   - AnimationEngine (playback)
+//   - SortingVisualizer, CanvasRenderer (rendering)
+//   - BSTree, AVLTree (interactive tree viz)
+//   - Info panel (description / steps / code tabs)
+//   - Custom input modal
+//   - Theme toggle
+// ============================================================
 
 "use strict";
 
@@ -17,13 +17,13 @@ class App {
   constructor() {
     this.currentAlgo = null;
 
-    
+    // Core systems
     this.engine      = new AnimationEngine();
     this.canvas      = document.getElementById('viz-canvas');
     this.renderer    = new CanvasRenderer(this.canvas);
     this.sortingViz  = new SortingVisualizer(document.getElementById('sort-container'));
 
-    
+    // Data
     this.graphData      = createDefaultGraph();
     this.bstTree        = new BSTree();
     this.avlTree        = new AVLTree();
@@ -40,36 +40,67 @@ class App {
     ];
     this.knapsackW = 5;
 
+    // ── Sequence Alignment ──────────────────────────────────
+    this.alignSeq1   = 'GATTACA';
+    this.alignSeq2   = 'GCATGCU';
+
+    // ── Database Search ─────────────────────────────────────
+    this.blastQuery  = 'ATGCAT';
+    this.blastDb     = ['TGCATGCATG', 'ATGATGATGC', 'GCATGCTAGT', 'AATGCATGCC'];
+    this.fastaQuery  = 'ATGCAT';
+    this.fastaDb     = ['TGCATGCATG', 'ATGATGATGC', 'GCATGCTAGT', 'AATGCATGCC'];
+
+    // ── Phylogenetics ────────────────────────────────────────
+    this.phyloTaxa      = ['Human', 'Chimp', 'Gorilla', 'Orangutan'];
+    this.phyloDistances = [
+      [0,    0.11, 0.17, 0.32],
+      [0.11, 0,    0.16, 0.31],
+      [0.17, 0.16, 0,    0.30],
+      [0.32, 0.31, 0.30, 0   ]
+    ];
+    this.phyloSequences = ['ACGTACG', 'ACGTTCG', 'ACGTCCG', 'TCGTACG'];
+
+    // ── Clustering ───────────────────────────────────────────
+    this.clusterPoints    = generateClusterPoints(40, 3);
+    this.kmeansK          = 3;
+    this.hierPoints       = generateClusterPoints(14, 3, 0.12);
+
+    // ── Red-Black Tree ────────────────────────────────────────
+    this.rbTree           = new RBTree();
+
+    // ── Renderers ────────────────────────────────────────────
+    this.alignRenderer    = new AlignmentRenderer(document.getElementById('other-container'));
+
     this.init();
   }
 
-  
+  // ── Random Array Helper ───────────────────────────────────
   _generateArray(size, min = 5, max = 95) {
     return Array.from({ length: size }, () => Math.floor(Math.random() * (max - min + 1)) + min);
   }
 
-  
+  // ── Bootstrap ─────────────────────────────────────────────
   init() {
-    
+    // Sidebar algo buttons
     document.querySelectorAll('.algo-btn').forEach(btn => {
       btn.addEventListener('click', () => this.selectAlgo(btn.dataset.algo));
     });
 
-    
+    // Playback controls
     document.getElementById('btn-play').addEventListener('click',  () => this.togglePlay());
     document.getElementById('btn-step').addEventListener('click',  () => this.stepBack());
     document.getElementById('btn-next').addEventListener('click',  () => this.stepForward());
     document.getElementById('btn-reset').addEventListener('click', () => this.resetAlgo());
     document.getElementById('btn-input').addEventListener('click', () => this.openInputModal());
 
-    
+    // Speed slider
     const speedSlider = document.getElementById('speed-slider');
     speedSlider.addEventListener('input', () => {
       this.engine.speed = parseInt(speedSlider.value);
       document.getElementById('speed-label').textContent = speedSlider.value + 'x';
     });
 
-    
+    // Info panel tabs
     document.querySelectorAll('.info-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.info-tab').forEach(t => t.classList.remove('active'));
@@ -79,7 +110,7 @@ class App {
       });
     });
 
-    
+    // Theme toggle
     document.getElementById('theme-toggle').addEventListener('click', () => {
       document.body.classList.toggle('light');
       document.getElementById('theme-toggle').textContent =
@@ -87,29 +118,30 @@ class App {
       if (this.currentAlgo) this._refreshCurrentFrame();
     });
 
-    
+    // Modal
     document.getElementById('modal-cancel').addEventListener('click', () => this.closeModal());
     document.getElementById('modal-apply').addEventListener('click',  () => this.applyInput());
     document.getElementById('modal-overlay').addEventListener('click', e => {
       if (e.target === document.getElementById('modal-overlay')) this.closeModal();
     });
 
-    
+    // Graph controls
     document.getElementById('btn-apply-graph').addEventListener('click', () => {
       const start = document.getElementById('start-node-select').value;
       const end   = document.getElementById('end-node-select').value || null;
       if (start) this._startGraphAlgo(this.currentAlgo, start, end);
     });
 
-    
+    // Engine callbacks
     this.engine.onFrame = (frame, idx) => this._onFrame(frame, idx);
     this.engine.onEnd   = () => this._onEnd();
 
-    
+    // Canvas sizing
     this._resizeCanvas();
     window.addEventListener('resize', () => this._resizeCanvas());
   }
 
+  // ── Canvas resize ─────────────────────────────────────────
   _resizeCanvas() {
     const vizArea   = document.getElementById('viz-area');
     const container = document.getElementById('canvas-container');
@@ -121,7 +153,7 @@ class App {
     if (this.currentAlgo) this._refreshCurrentFrame();
   }
 
-  
+  // ── Algorithm Selection ───────────────────────────────────
   selectAlgo(algo) {
     this.currentAlgo = algo;
     document.querySelectorAll('.algo-btn').forEach(b =>
@@ -131,58 +163,74 @@ class App {
     const meta = ALGO_META[algo];
     if (!meta) return;
 
-    
+    // Header
     document.getElementById('algo-title').textContent = meta.name;
     const badge = document.getElementById('complexity-badge');
     badge.textContent  = `Avg: ${meta.complexity.avg}`;
     badge.style.display = '';
 
-    
+    // Show correct viz panel
     this._showCorrectVizPanel(meta.category);
     document.getElementById('stats-bar').style.display =
       meta.category === 'sorting' ? '' : 'none';
     document.getElementById('current-step-msg').style.display = '';
     document.getElementById('current-step-msg').textContent = 'Press ▶ Play or ⏭ Step to begin.';
 
-    
+    // Info panel
     this._renderInfoPanel(meta);
     this._renderCodePanel(meta);
     this._renderStepsPanel(meta);
 
-    
+    // Enable controls
     ['btn-play','btn-step','btn-next','btn-reset'].forEach(id =>
       document.getElementById(id).disabled = false
     );
 
-    
-    const isGraph = ['bfs','dfs','dijkstra','astar'].includes(algo);
-    const isTree  = ['bst','avl'].includes(algo);
+    // Graph / tree setup
+    const isGraph    = ['bfs','dfs','dijkstra','astar'].includes(algo);
+    const isTree     = ['bst','avl'].includes(algo);
+    const isRBTree   = algo === 'rbtree';
+    const isPhylo    = ['upgma','neighborjoining','maxparsimony','maxlikelihood'].includes(algo);
+    const isClustering = ['kmeans','hierarchicalclustering'].includes(algo);
     document.getElementById('graph-input-bar').style.display = isGraph ? '' : 'none';
-    if (isGraph) this._populateGraphDropdowns();
-    else if (isTree) this._initTreeViz();
+    if (isGraph)   this._populateGraphDropdowns();
+    else if (isTree)   this._initTreeViz();
+    else if (isRBTree) this._initRBTreeViz();
+    else if (isPhylo && !['maxparsimony','maxlikelihood'].includes(algo)) { /* canvas shown by panel */ }
+    // Reset alignment renderer when switching away from alignment
+    if (meta.category !== 'alignment') { this.alignRenderer.lastSeq1 = null; this.alignRenderer.lastSeq2 = null; }
 
-    
+    // Legend
     this._setLegend(meta.category);
 
-    
+    // Load algorithm
     this._loadAlgo(algo);
   }
 
-  
+  // ── Panel visibility ──────────────────────────────────────
   _showCorrectVizPanel(category) {
     document.getElementById('sort-container').style.display   = 'none';
     document.getElementById('canvas-container').style.display = 'none';
     document.getElementById('other-container').style.display  = 'none';
     document.getElementById('viz-placeholder').style.display  = 'none';
 
-    if      (category === 'sorting')              document.getElementById('sort-container').style.display   = '';
-    else if (category === 'graph' || category === 'tree') {
+    if (category === 'sorting') {
+      document.getElementById('sort-container').style.display = '';
+    } else if (category === 'graph' || category === 'tree') {
       document.getElementById('canvas-container').style.display = '';
       this._resizeCanvas();
-    } else                                        document.getElementById('other-container').style.display  = 'flex';
+    } else if (category === 'phylo' || category === 'clustering' || category === 'rbtree') {
+      document.getElementById('canvas-container').style.display = '';
+      this._resizeCanvas();
+    } else if (category === 'alignment' || category === 'database') {
+      document.getElementById('other-container').style.display = 'flex';
+      this.alignRenderer.container = document.getElementById('other-container');
+    } else {
+      document.getElementById('other-container').style.display = 'flex';
+    }
   }
 
-  
+  // ── Legend ────────────────────────────────────────────────
   _setLegend(category) {
     const legend = document.getElementById('legend');
     const legendData = {
@@ -205,6 +253,34 @@ class App {
         { color: '#3fb950', label: 'Inserted/Found'  },
         { color: '#f78166', label: 'Rotation'        },
       ],
+      alignment: [
+        { color: '#39d0d8', label: 'Current Cell' },
+        { color: '#3fb950', label: 'Match'        },
+        { color: '#bc8cff', label: 'Backtrace Path' },
+        { color: '#f78166', label: 'Gap / Mismatch' },
+      ],
+      database: [
+        { color: '#39d0d8', label: 'Seed Hit'  },
+        { color: '#bc8cff', label: 'Extension' },
+        { color: '#3fb950', label: 'Best HSP'  },
+      ],
+      phylo: [
+        { color: '#58a6ff', label: 'Tree Edge'     },
+        { color: '#3fb950', label: 'Current Merge' },
+        { color: '#39d0d8', label: 'Internal Node' },
+      ],
+      clustering: [
+        { color: '#58a6ff', label: 'Cluster 1'  },
+        { color: '#3fb950', label: 'Cluster 2'  },
+        { color: '#f78166', label: 'Cluster 3'  },
+        { color: '#bc8cff', label: 'Centroid ✦' },
+      ],
+      rbtree: [
+        { color: '#e5534b', label: 'Red Node'   },
+        { color: '#3c4149', label: 'Black Node' },
+        { color: '#3fb950', label: 'Inserted'   },
+        { color: '#f78166', label: 'Rotation'   },
+      ],
     };
     const items = legendData[category] || [];
     legend.style.display = items.length ? '' : 'none';
@@ -216,17 +292,22 @@ class App {
     ).join('');
   }
 
-  
+  // ── Algorithm Loading ─────────────────────────────────────
   _loadAlgo(algo) {
     const meta = ALGO_META[algo];
     this.engine.reset();
 
-    if      (meta.category === 'sorting') this._loadSortAlgo(algo);
-    else if (meta.category === 'graph')   this._startGraphAlgo(algo,
+    if      (meta.category === 'sorting')    this._loadSortAlgo(algo);
+    else if (meta.category === 'graph')      this._startGraphAlgo(algo,
       document.getElementById('start-node-select').value || 'A',
       document.getElementById('end-node-select').value   || null
     );
-    else if (meta.category === 'tree') { /* handled interactively */ }
+    else if (meta.category === 'tree')       { /* interactive */ }
+    else if (meta.category === 'alignment')  this._loadAlignmentAlgo(algo);
+    else if (meta.category === 'database')   this._loadDatabaseAlgo(algo);
+    else if (meta.category === 'phylo')      this._loadPhyloAlgo(algo);
+    else if (meta.category === 'clustering') this._loadClusteringAlgo(algo);
+    else if (meta.category === 'rbtree')     { /* interactive */ }
     else this._loadOtherAlgo(algo);
   }
 
@@ -295,7 +376,143 @@ class App {
     }
   }
 
-  
+  // ── Alignment ─────────────────────────────────────────────
+  _loadAlignmentAlgo(algo) {
+    const generators = {
+      needlemanwunsch: () => needlemanWunschGen(this.alignSeq1, this.alignSeq2),
+      smithwaterman:   () => smithWatermanGen(this.alignSeq1, this.alignSeq2),
+      affinegap:       () => affineGapGen(this.alignSeq1, this.alignSeq2),
+      msa:             () => msaGen([this.alignSeq1, this.alignSeq2, 'GCATGCU', 'GCTTACA']),
+      semiglobal:      () => semiGlobalGen(this.alignSeq1, this.alignSeq2),
+    };
+    const gen = generators[algo];
+    if (!gen) return;
+    this.alignRenderer.container = document.getElementById('other-container');
+    this.alignRenderer.lastSeq1 = null; // force rebuild
+    const count = this.engine.load(gen());
+    document.getElementById('current-step-msg').textContent =
+      `Aligning "${this.alignSeq1}" vs "${this.alignSeq2}" — ${count} steps. Press ▶ Play.`;
+  }
+
+  // ── Stub for database search (not in this task) ────────────
+  _loadDatabaseAlgo(algo) {
+    document.getElementById('current-step-msg').textContent = 'Database search demo not included.';
+  }
+
+  // ── Phylogenetics ─────────────────────────────────────────
+  _loadPhyloAlgo(algo) {
+    this.renderer.clear();
+    const generators = {
+      upgma:           () => upgmaGen(this.phyloTaxa, this.phyloDistances),
+      neighborjoining: () => neighborJoiningGen(this.phyloTaxa, this.phyloDistances),
+      maxparsimony:    () => maxParsimonyGen(this.phyloTaxa, this.phyloSequences),
+      maxlikelihood:   () => maxLikelihoodGen(this.phyloTaxa, this.phyloSequences),
+    };
+    const gen = generators[algo];
+    if (!gen) return;
+    const count = this.engine.load(gen());
+    document.getElementById('current-step-msg').textContent =
+      `${count} steps — Taxa: ${this.phyloTaxa.join(', ')}. Press ▶ Play.`;
+  }
+
+  // Helper: build UPGMA treeEdges from frames 0..idx
+  _getUPGMAEdges(upToIdx) {
+    const edges = [];
+    for (let i = 0; i <= upToIdx && i < this.engine.frames.length; i++) {
+      const f = this.engine.frames[i];
+      if (f && f.type === 'merge' && f.newNode)
+        edges.push({ from: f.newNode.label, toA: f.mergedA, toB: f.mergedB });
+    }
+    return edges;
+  }
+
+  // ── Clustering ────────────────────────────────────────────
+  _loadClusteringAlgo(algo) {
+    this.renderer.clear();
+    const generators = {
+      kmeans:                 () => kMeansGen(this.clusterPoints, this.kmeansK),
+      hierarchicalclustering: () => hierarchicalClusteringGen(this.hierPoints),
+    };
+    const gen = generators[algo];
+    if (!gen) return;
+    const count = this.engine.load(gen());
+    document.getElementById('current-step-msg').textContent =
+      `${count} frames — ${algo === 'kmeans' ? 'k=' + this.kmeansK + ', ' + this.clusterPoints.length + ' points' : this.hierPoints.length + ' points'}. Press ▶ Play.`;
+  }
+
+  // ── Red-Black Tree interactive ────────────────────────────
+  _initRBTreeViz() {
+    document.getElementById('canvas-container').style.display = 'flex';
+    document.getElementById('other-container').style.display  = 'flex';
+    const other = document.getElementById('other-container');
+    other.innerHTML = '';
+    other.style.cssText = 'max-height:80px; flex-direction:row; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 16px;';
+
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'color:var(--text-muted); font-size:11px;';
+    lbl.textContent = 'Red-Black Tree:'; other.appendChild(lbl);
+
+    const input = document.createElement('input');
+    input.type = 'number'; input.placeholder = 'Value (1-99)';
+    input.className = 'form-input'; input.style.width = '130px';
+    other.appendChild(input);
+
+    const doInsert = () => {
+      const v = parseInt(input.value);
+      if (isNaN(v) || v < 1 || v > 99) return;
+      const frames = this.rbTree.insert(v);
+      let i = 0;
+      const show = () => {
+        if (i < frames.length) {
+          document.getElementById('current-step-msg').textContent = frames[i].msg;
+          this.renderer.drawRBTree(this.rbTree.snapshot(), v, frames[i].action === 'rotate' ? v : null);
+          i++;
+          setTimeout(show, 450);
+        } else {
+          this.renderer.drawRBTree(this.rbTree.snapshot(), v);
+        }
+      };
+      show();
+      input.value = '';
+    };
+
+    const ins = document.createElement('button');
+    ins.className = 'btn btn-primary'; ins.textContent = '+ Insert';
+    ins.onclick = doInsert; other.appendChild(ins);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') doInsert(); });
+
+    const clr = document.createElement('button');
+    clr.className = 'btn'; clr.textContent = '🗑 Clear';
+    clr.onclick = () => { this.rbTree = new RBTree(); this.renderer.drawRBTree(null); };
+    other.appendChild(clr);
+
+    const rnd = document.createElement('button');
+    rnd.className = 'btn'; rnd.textContent = '🎲 Auto-Demo';
+    rnd.onclick = () => {
+      this.rbTree = new RBTree();
+      const vals = [10, 20, 30, 15, 25, 5, 35, 28, 40, 22];
+      let i = 0;
+      const go = () => {
+        if (i < vals.length) {
+          this.rbTree.insert(vals[i]);
+          this.renderer.drawRBTree(this.rbTree.snapshot(), vals[i]);
+          document.getElementById('current-step-msg').textContent =
+            `Inserted ${vals[i]} — Red-Black properties auto-maintained.`;
+          i++;
+          setTimeout(go, 650);
+        }
+      };
+      go();
+    };
+    other.appendChild(rnd);
+
+    ['btn-play','btn-step','btn-next','btn-reset'].forEach(id =>
+      document.getElementById(id).disabled = true
+    );
+    this.renderer.drawRBTree(this.rbTree.snapshot());
+  }
+
+  // ── Specialized Renderers ─────────────────────────────────
   _renderBSViz(arr, state) {
     const container = document.getElementById('other-container');
     container.innerHTML = '';
@@ -318,7 +535,7 @@ class App {
     }
     container.appendChild(row);
 
-    
+    // Pointer row (L / M / R labels)
     const ptrs = document.createElement('div');
     ptrs.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; justify-content:center; margin-top:4px;';
     for (let i = 0; i < arr.length; i++) {
@@ -374,7 +591,7 @@ class App {
     const container = document.getElementById('other-container');
     container.innerHTML = '';
 
-    
+    // Item chips
     const itemsDiv = document.createElement('div');
     itemsDiv.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;';
     for (const item of this.knapsackItems) {
@@ -385,7 +602,7 @@ class App {
     }
     container.appendChild(itemsDiv);
 
-    
+    // DP table
     const tableWrap = document.createElement('div');
     tableWrap.className = 'knapsack-table-wrap';
     const table = document.createElement('table');
@@ -422,7 +639,7 @@ class App {
     container.appendChild(tableWrap);
   }
 
-  
+  // ── Tree Interactive Controls ─────────────────────────────
   _initTreeViz() {
     document.getElementById('other-container').style.display  = 'flex';
     document.getElementById('canvas-container').style.display = '';
@@ -565,29 +782,36 @@ class App {
     endSel.value   = 'H';
   }
 
-  
+  // ── Frame Handler ─────────────────────────────────────────
   _onFrame(frame, idx) {
     const algo = this.currentAlgo;
     const meta = ALGO_META[algo];
 
-    
+    // Stats
     if (frame.comparisons !== undefined) document.getElementById('stat-cmp').textContent = frame.comparisons;
     if (frame.swaps !== undefined)       document.getElementById('stat-swp').textContent = frame.swaps;
     document.getElementById('stat-step').textContent = idx + 1;
 
-    
+    // Step message
     const msgEl = document.getElementById('current-step-msg');
     if (frame.msg) msgEl.textContent = `Step ${idx + 1}/${this.engine.frames.length}: ${frame.msg}`;
 
-    
+    // Visualization
     if      (meta.category === 'sorting')     this.sortingViz.render(frame);
     else if (meta.category === 'tree')        this.renderer.drawTree(this.bstTree.root);
     else if (meta.category === 'graph')       this.renderer.drawGraph(this.graphData, frame);
+    else if (meta.category === 'alignment')   this.alignRenderer.render(frame);
+    else if (algo === 'upgma')                this.renderer.drawDendogram({ ...frame, treeEdges: this._getUPGMAEdges(idx), mergeA: frame.mergedA, mergeB: frame.mergedB });
+    else if (algo === 'neighborjoining')      this.renderer.drawNJTree(frame);
+    else if (algo === 'maxparsimony')         this.renderer.drawTopologies(frame);
+    else if (algo === 'maxlikelihood')        this.renderer.drawTopologies(frame);
+    else if (algo === 'kmeans')               this.renderer.drawKMeans(frame);
+    else if (algo === 'hierarchicalclustering') this.renderer.drawHierarchical(frame);
     else if (algo === 'binarysearch')         this._renderBSViz(this.bsArr, frame);
     else if (algo === 'fibonacci')            this._renderFibViz(frame);
     else if (algo === 'knapsack')             this._renderKnapsackViz(frame);
 
-    
+    // Code / step highlighting
     if (frame.codeTrigger) this._highlightCode(meta, frame.codeTrigger);
   }
 
@@ -606,7 +830,7 @@ class App {
     }
   }
 
-  
+  // ── Playback Controls ─────────────────────────────────────
   togglePlay() {
     if (this.engine.isPlaying) {
       this.engine.pause();
@@ -649,7 +873,7 @@ class App {
     document.getElementById('stat-step').textContent = '0';
   }
 
-  
+  // ── Info Panel ────────────────────────────────────────────
   _renderInfoPanel(meta) {
     document.getElementById('tab-info').innerHTML = `
       <div class="info-section">
@@ -720,7 +944,7 @@ class App {
     }
   }
 
-  
+  // ── Custom Input Modal ────────────────────────────────────
   openInputModal() {
     const algo = this.currentAlgo;
     if (!algo) return;
@@ -782,6 +1006,28 @@ class App {
           }</textarea>
         </div>`;
 
+    } else if (meta.category === 'alignment') {
+      body.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">Sequence 1 (DNA/protein, max 20 chars)</label>
+          <input class="form-input" id="input-seq1" value="${this.alignSeq1}" placeholder="e.g. GATTACA" style="font-family:monospace; letter-spacing:2px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sequence 2 (DNA/protein, max 20 chars)</label>
+          <input class="form-input" id="input-seq2" value="${this.alignSeq2}" placeholder="e.g. GCATGCU" style="font-family:monospace; letter-spacing:2px;">
+        </div>`;
+
+    } else if (algo === 'kmeans') {
+      body.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">Number of clusters k (2–6)</label>
+          <input class="form-input" id="input-k" type="number" min="2" max="6" value="${this.kmeansK}" style="width:80px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Number of points (10–80)</label>
+          <input class="form-input" id="input-pts" type="number" min="10" max="80" value="${this.clusterPoints.length}" style="width:80px;">
+        </div>`;
+
     } else {
       body.innerHTML = `<div style="color:var(--text-muted); font-size:12px; padding:16px 0;">
         This algorithm uses a fixed demo dataset.</div>`;
@@ -820,9 +1066,18 @@ class App {
         return { name: name?.trim(), weight: parseInt(w), value: parseInt(v) };
       }).filter(i => i.name && !isNaN(i.weight) && !isNaN(i.value) && i.weight > 0 && i.value > 0).slice(0, 8);
       if (items.length > 0) this.knapsackItems = items;
-    }
+    } else if (meta.category === 'alignment') {
+      const s1 = (document.getElementById('input-seq1')?.value || '').trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,20);
+      const s2 = (document.getElementById('input-seq2')?.value || '').trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,20);
+      if (s1.length >= 2) this.alignSeq1 = s1;
+      if (s2.length >= 2) this.alignSeq2 = s2;
 
-    this.closeModal();
+    } else if (algo === 'kmeans') {
+      const k = parseInt(document.getElementById('input-k')?.value);
+      const n = parseInt(document.getElementById('input-pts')?.value);
+      if (!isNaN(k) && k >= 2 && k <= 6) this.kmeansK = k;
+      if (!isNaN(n) && n >= 10 && n <= 80) this.clusterPoints = generateClusterPoints(n, this.kmeansK);
+    }
     this.engine.reset();
     this._loadAlgo(algo);
   }
@@ -830,5 +1085,5 @@ class App {
   closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 }
 
-
+// ── Boot ──────────────────────────────────────────────────────
 const app = new App();

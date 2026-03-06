@@ -1,5 +1,17 @@
+// ============================================================
+// TREE DATA STRUCTURES
+//
+// BSTree  — standard Binary Search Tree with insert / search
+// AVLTree — self-balancing AVL tree with 4 rotation cases
+//
+// Both classes are pure data structures with no DOM or canvas
+// dependencies. The App controller reads their root nodes and
+// passes them to CanvasRenderer.drawTree().
+// ============================================================
+
 "use strict";
 
+// ── BST Node ─────────────────────────────────────────────────
 class BSTNode {
   constructor(val) {
     this.val = val;
@@ -8,6 +20,7 @@ class BSTNode {
   }
 }
 
+// ── Binary Search Tree ────────────────────────────────────────
 class BSTree {
   constructor() {
     this.root = null;
@@ -67,6 +80,7 @@ class BSTree {
   }
 }
 
+// ── AVL Node ─────────────────────────────────────────────────
 class AVLNode {
   constructor(val) {
     this.val = val;
@@ -76,6 +90,7 @@ class AVLNode {
   }
 }
 
+// ── AVL Tree ─────────────────────────────────────────────────
 class AVLTree {
   height(n)           { return n ? n.height : 0; }
   bf(n)               { return n ? this.height(n.left) - this.height(n.right) : 0; }
@@ -111,13 +126,14 @@ class AVLTree {
       frames.push({ msg: `${val} > ${root.val}: go right`, codeTrigger: 'right' });
       root.right = this.insert(root.right, val, frames);
     } else {
-      return root;
+      return root; // duplicate
     }
 
     this.updateHeight(root);
     const bf = this.bf(root);
     frames.push({ msg: `Node ${root.val}: height=${root.height}, balance=${bf}`, codeTrigger: 'balance' });
 
+    // LL case
     if (bf > 1 && val < root.left.val) {
       frames.push({ msg: `LL case: Right rotation at ${root.val}`, codeTrigger: 'rotate' });
       return this.rotateRight(root);

@@ -1,3 +1,10 @@
+// ============================================================
+// ALGORITHM METADATA
+// Single source of truth for all algorithm descriptors:
+// name, category, complexity, description, use cases,
+// step-by-step explanations, and code snippets with line
+// trigger labels for live code highlighting.
+// ============================================================
 
 "use strict";
 
@@ -516,6 +523,377 @@ const ALGO_META = {
       { text: "  }", line: 15 },
       { text: "  return dp[n][W];", line: 16, trigger: "result" },
       { text: "}", line: 17 },
+    ]
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // SEQUENCE ALIGNMENT
+  // ══════════════════════════════════════════════════════════
+
+  needlemanwunsch: {
+    name: "Needleman-Wunsch",
+    category: "alignment",
+    complexity: { best: "O(mn)", avg: "O(mn)", worst: "O(mn)", space: "O(mn)" },
+    complexityClass: { best: "yellow", avg: "yellow", worst: "yellow", space: "yellow" },
+    description: "Needleman-Wunsch finds the optimal global alignment between two sequences using dynamic programming. It fills a (m+1)×(n+1) matrix where each cell represents the best alignment score for the corresponding prefixes, then backtracks to recover the alignment.",
+    useCases: ["Protein sequence comparison", "DNA/RNA global alignment", "Evolutionary distance estimation"],
+    steps: [
+      { title: "Initialize", text: "Fill first row and column with cumulative gap penalties: dp[i][0] = i × gap, dp[0][j] = j × gap." },
+      { title: "Fill Matrix", text: "For each cell (i,j): dp[i][j] = max(diag + match/mismatch, up + gap, left + gap)." },
+      { title: "Backtrace", text: "Start from dp[m][n] and follow the path back to (0,0), recording matches, mismatches, and gaps." },
+      { title: "Read Alignment", text: "The backtrace path gives the optimal alignment with matches (|), mismatches (.), and gaps (-)." },
+    ],
+    code: [
+      { text: "function nw(s1, s2, match, mis, gap) {", line: 0 },
+      { text: "  const dp = init_borders(s1, s2, gap);", line: 1, trigger: "init" },
+      { text: "  for (i=1; i<=m; i++)", line: 2 },
+      { text: "    for (j=1; j<=n; j++) {", line: 3 },
+      { text: "      const s = s1[i-1]===s2[j-1] ? match : mis;", line: 4, trigger: "fill" },
+      { text: "      dp[i][j] = max(dp[i-1][j-1]+s,", line: 5, trigger: "fill" },
+      { text: "                    dp[i-1][j]+gap,", line: 6 },
+      { text: "                    dp[i][j-1]+gap);", line: 7 },
+      { text: "    }", line: 8 },
+      { text: "  return backtrace(dp);  // from (m,n)→(0,0)", line: 9, trigger: "backtrace" },
+      { text: "}", line: 10 },
+    ]
+  },
+
+  smithwaterman: {
+    name: "Smith-Waterman",
+    category: "alignment",
+    complexity: { best: "O(mn)", avg: "O(mn)", worst: "O(mn)", space: "O(mn)" },
+    complexityClass: { best: "yellow", avg: "yellow", worst: "yellow", space: "yellow" },
+    description: "Smith-Waterman finds the optimal local alignment between two sequences. Unlike Needleman-Wunsch, negative scores are reset to 0, allowing the algorithm to ignore poorly-matching regions and focus on the highest-scoring subsequences.",
+    useCases: ["Finding conserved domains", "Exon discovery", "Database similarity search"],
+    steps: [
+      { title: "Initialize to Zero", text: "All border cells and the entire matrix starts at 0 (no penalty for starting anywhere)." },
+      { title: "Fill with max(0,...)", text: "dp[i][j] = max(0, diag+score, up+gap, left+gap). Zeros prevent negative scores propagating." },
+      { title: "Find Maximum", text: "Scan the entire matrix for the highest score — this is the best local alignment end point." },
+      { title: "Backtrace to Zero", text: "From the max cell, follow arrows back until reaching a cell with score 0." },
+    ],
+    code: [
+      { text: "function sw(s1, s2, match, mis, gap) {", line: 0 },
+      { text: "  const dp = zeros(m+1, n+1); // no border penalty", line: 1, trigger: "init" },
+      { text: "  let maxScore=0, maxI=0, maxJ=0;", line: 2 },
+      { text: "  for (i=1..m) for (j=1..n) {", line: 3 },
+      { text: "    dp[i][j] = max(0,                // key: no negatives!", line: 4, trigger: "fill" },
+      { text: "      dp[i-1][j-1]+score(i,j),", line: 5 },
+      { text: "      dp[i-1][j]+gap, dp[i][j-1]+gap);", line: 6 },
+      { text: "    if (dp[i][j]>maxScore) {maxScore=dp[i][j]; maxI=i; maxJ=j;}", line: 7 },
+      { text: "  }", line: 8 },
+      { text: "  return backtrace(dp, maxI, maxJ); // stop at 0", line: 9, trigger: "backtrace" },
+      { text: "}", line: 10 },
+    ]
+  },
+
+  semiglobal: {
+    name: "Semi-Global Alignment",
+    category: "alignment",
+    complexity: { best: "O(mn)", avg: "O(mn)", worst: "O(mn)", space: "O(mn)" },
+    complexityClass: { best: "yellow", avg: "yellow", worst: "yellow", space: "yellow" },
+    description: "Semi-global alignment is useful for finding overlaps between sequences — e.g., a read that extends beyond a reference. Leading and trailing gaps are not penalized, but internal gaps are. Backtrace starts from the best cell in the last row or column.",
+    useCases: ["Sequence assembly (overlaps)", "Short read mapping", "Finding gene boundaries"],
+    steps: [
+      { title: "Initialize to Zero", text: "Border cells are set to 0 (no penalty for leading gaps — free alignment start)." },
+      { title: "Fill Matrix Normally", text: "Internal cells are filled with standard gap penalties, same as NW." },
+      { title: "Find Best Boundary", text: "Scan last row AND last column for the maximum score — no penalty for trailing gaps." },
+      { title: "Backtrace from Best", text: "Backtrack from the best boundary cell to (0,0) to find the overlap alignment." },
+    ],
+    code: [
+      { text: "function semiGlobal(s1, s2, match, mis, gap) {", line: 0 },
+      { text: "  const dp = zeros(m+1, n+1); // free leading gaps", line: 1, trigger: "init" },
+      { text: "  for (i=1..m) for (j=1..n)", line: 2 },
+      { text: "    dp[i][j] = max(dp[i-1][j-1]+s,", line: 3, trigger: "fill" },
+      { text: "                  dp[i-1][j]+gap, dp[i][j-1]+gap);", line: 4 },
+      { text: "  // Best in last row or column (free trailing gaps)", line: 5 },
+      { text: "  const best = maxOf(lastRow, lastCol);", line: 6, trigger: "backtrace" },
+      { text: "  return backtrace(dp, best.i, best.j);", line: 7 },
+      { text: "}", line: 8 },
+    ]
+  },
+
+  affinegap: {
+    name: "Affine Gap Alignment",
+    category: "alignment",
+    complexity: { best: "O(mn)", avg: "O(mn)", worst: "O(mn)", space: "O(mn)" },
+    complexityClass: { best: "yellow", avg: "yellow", worst: "yellow", space: "yellow" },
+    description: "Affine gap scoring distinguishes gap opening (expensive) from gap extension (cheap), better modeling biological insertions/deletions. Three matrices M (match), Ix (gap in seq1), Iy (gap in seq2) are maintained simultaneously.",
+    useCases: ["Protein alignment (biologically realistic)", "Long-read alignment", "When indel biology matters"],
+    steps: [
+      { title: "Three Matrices", text: "M[i][j] = best score ending in match/mismatch. Ix[i][j] = gap in seq1. Iy[i][j] = gap in seq2." },
+      { title: "Fill Ix and Iy", text: "Ix[i][j] = max(M[i-1][j]+gapOpen, Ix[i-1][j]+gapExt). Opening a new gap costs more than extending." },
+      { title: "Fill M", text: "M[i][j] = max(prev_M, prev_Ix, prev_Iy) + match/mismatch score." },
+      { title: "Backtrace", text: "Track which matrix each cell came from; reconstruct the alignment following M → Ix → Iy transitions." },
+    ],
+    code: [
+      { text: "// gap = gapOpen + k * gapExt (affine model)", line: 0 },
+      { text: "Ix[i][j] = max(M[i-1][j]+gOpen, Ix[i-1][j]+gExt);", line: 1, trigger: "fillX" },
+      { text: "Iy[i][j] = max(M[i][j-1]+gOpen, Iy[i][j-1]+gExt);", line: 2, trigger: "fillY" },
+      { text: "M[i][j]  = max(M[i-1][j-1], Ix[i-1][j-1],", line: 3, trigger: "fillM" },
+      { text: "               Iy[i-1][j-1]) + score(i,j);", line: 4 },
+      { text: "// Backtrace: follow which matrix gave the best score", line: 5 },
+      { text: "return backtrace3(M, Ix, Iy);", line: 6, trigger: "backtrace" },
+    ]
+  },
+
+  msa: {
+    name: "Multiple Seq. Alignment",
+    category: "alignment",
+    complexity: { best: "O(k²·mn)", avg: "O(k²·mn)", worst: "O(k²·mn)", space: "O(k·n)" },
+    complexityClass: { best: "red", avg: "red", worst: "red", space: "yellow" },
+    description: "Progressive MSA (ClustalW-style) aligns multiple sequences by first computing pairwise distances, then building a guide tree (UPGMA), then progressively aligning sequences in tree order — merging most-similar pairs first.",
+    useCases: ["Multiple protein comparison", "Phylogenetics preprocessing", "Consensus sequence building"],
+    steps: [
+      { title: "Pairwise Distances", text: "Run NW for all k(k-1)/2 sequence pairs to build a distance matrix." },
+      { title: "Guide Tree (UPGMA)", text: "Cluster sequences by similarity using the distance matrix — closest pairs merge first." },
+      { title: "Progressive Alignment", text: "Follow the guide tree: align the closest pair first, then align each group progressively." },
+    ],
+    code: [
+      { text: "// Phase 1: pairwise NW scores", line: 0, trigger: "pairwise" },
+      { text: "for all pairs (i,j): score[i][j] = nw(seqs[i], seqs[j]);", line: 1 },
+      { text: "// Phase 2: UPGMA guide tree", line: 2, trigger: "guidetree" },
+      { text: "tree = upgma(distMatrix(scores));", line: 3 },
+      { text: "// Phase 3: Progressive alignment", line: 4, trigger: "align" },
+      { text: "for each merge in tree:", line: 5 },
+      { text: "  alignment = align(profile_A, profile_B);", line: 6 },
+    ]
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // DATABASE SIMILARITY SEARCH
+  // ══════════════════════════════════════════════════════════
+
+  blast: {
+    name: "BLAST",
+    category: "database",
+    complexity: { best: "O(mn)", avg: "O(mn/k)", worst: "O(mn)", space: "O(n+m)" },
+    complexityClass: { best: "green", avg: "green", worst: "yellow", space: "green" },
+    description: "BLAST (Basic Local Alignment Search Tool) is the most widely used bioinformatics tool. It uses a heuristic: instead of full DP, it finds exact word (k-mer) hits between query and database, then extends those seeds to find high-scoring segment pairs (HSPs).",
+    useCases: ["Protein/DNA database search", "Homology detection", "Functional annotation", "Sequence classification"],
+    steps: [
+      { title: "Extract Words", text: "Divide the query into all overlapping k-mers (default k=3 for proteins, k=11 for DNA)." },
+      { title: "Find Seeds", text: "Scan each database sequence for exact matches to query k-mers — these are seed hits." },
+      { title: "Extend HSPs", text: "Extend each seed hit in both directions without gaps while the score stays above a threshold (X-dropoff)." },
+      { title: "Score & E-value", text: "Score final HSPs and compute E-value: expected number of hits by chance. Report significant hits." },
+    ],
+    code: [
+      { text: "// Extract k-mers from query", line: 0, trigger: "words" },
+      { text: "words = query.kmers(k=3);", line: 1 },
+      { text: "// Find exact seeds in database", line: 2, trigger: "seeds" },
+      { text: "hits = db.find_exact(words);", line: 3 },
+      { text: "// Ungapped extension", line: 4, trigger: "extend" },
+      { text: "for hit in hits:", line: 5 },
+      { text: "  hsp = extend(hit, X_dropoff);", line: 6 },
+      { text: "  if hsp.score > threshold: report(hsp);", line: 7, trigger: "result" },
+    ]
+  },
+
+  fasta: {
+    name: "FASTA",
+    category: "database",
+    complexity: { best: "O(mn/k)", avg: "O(mn/k)", worst: "O(mn)", space: "O(n+m)" },
+    complexityClass: { best: "green", avg: "green", worst: "yellow", space: "green" },
+    description: "FASTA (Fast All) predates BLAST and uses k-tuple (short word) matching with diagonal analysis. It identifies promising diagonals in the comparison matrix by counting k-tuple hits on the same diagonal, then scores the best diagonal region.",
+    useCases: ["Sequence database search", "Finding local similarity", "Proteome comparison"],
+    steps: [
+      { title: "k-Tuple Index", text: "Index all k-tuples (short words) from the query and record their positions." },
+      { title: "Diagonal Hits", text: "For each database position matching a query k-tuple, record the diagonal offset (qi - dj)." },
+      { title: "Best Diagonal", text: "Find the diagonal with the most hits — this is the most promising alignment region." },
+      { title: "Score Region", text: "Score the region on the best diagonal and report the init1 score." },
+    ],
+    code: [
+      { text: "// Index query k-tuples", line: 0, trigger: "ktuples" },
+      { text: "idx = buildIndex(query, k=2);", line: 1 },
+      { text: "// Find diagonal runs in db", line: 2, trigger: "diagonals" },
+      { text: "for each db position:", line: 3 },
+      { text: "  if db[j] in idx: record diagonal qi-j;", line: 4 },
+      { text: "// Score best diagonal region", line: 5, trigger: "best_diag" },
+      { text: "bestDiag = maxDiagonalScore(diagonals);", line: 6 },
+      { text: "report(score(bestDiag));", line: 7, trigger: "score" },
+    ]
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // PHYLOGENETIC TREES
+  // ══════════════════════════════════════════════════════════
+
+  upgma: {
+    name: "UPGMA",
+    category: "phylo",
+    complexity: { best: "O(n²)", avg: "O(n²)", worst: "O(n³)", space: "O(n²)" },
+    complexityClass: { best: "red", avg: "red", worst: "red", space: "yellow" },
+    description: "UPGMA (Unweighted Pair Group Method with Arithmetic Mean) builds a rooted phylogenetic tree by repeatedly merging the two closest taxa/clusters. Branch heights equal half the merge distance. Assumes a molecular clock (all lineages evolve at equal rates).",
+    useCases: ["Phylogenetic tree reconstruction", "Hierarchical clustering", "Evolutionary distance analysis"],
+    steps: [
+      { title: "Distance Matrix", text: "Start with pairwise distances between all taxa." },
+      { title: "Find Minimum", text: "Find the pair of taxa/clusters with the smallest distance." },
+      { title: "Merge", text: "Merge them into a new node at height = distance/2." },
+      { title: "Update Distances", text: "Compute new distances using weighted average of cluster members." },
+      { title: "Repeat", text: "Repeat until all taxa are merged into one root." },
+    ],
+    code: [
+      { text: "while clusters.length > 1:", line: 0, trigger: "select" },
+      { text: "  (i,j) = argmin(dist);  // closest pair", line: 1, trigger: "select" },
+      { text: "  new_node.height = dist[i][j] / 2;", line: 2, trigger: "merge" },
+      { text: "  for k != i,j:", line: 3 },
+      { text: "    dist[new][k] = weighted_avg(dist[i][k], dist[j][k]);", line: 4, trigger: "merge" },
+      { text: "  remove i,j; add new_node;", line: 5 },
+    ]
+  },
+
+  neighborjoining: {
+    name: "Neighbor-Joining",
+    category: "phylo",
+    complexity: { best: "O(n³)", avg: "O(n³)", worst: "O(n³)", space: "O(n²)" },
+    complexityClass: { best: "red", avg: "red", worst: "red", space: "yellow" },
+    description: "Neighbor-Joining builds an unrooted phylogenetic tree that minimizes total branch length. It uses the Q-matrix (corrected for total row sums) to find the best pair to join at each step, computing exact branch lengths for each merged node.",
+    useCases: ["Unrooted phylogenetic trees", "Distance-based phylogenetics", "Genomics & evolution"],
+    steps: [
+      { title: "Compute Q-Matrix", text: "Q[i][j] = (n-2)×d[i][j] - R[i] - R[j], where R[i] = sum of row i distances." },
+      { title: "Find Min Q", text: "Select pair (i,j) with minimum Q value — they are neighbors." },
+      { title: "Branch Lengths", text: "limbI = d(i,j)/2 + (R[i]-R[j])/(2(n-2)), limbJ = d(i,j) - limbI." },
+      { title: "Update Matrix", text: "New distances: d(new, k) = (d(i,k) + d(j,k) - d(i,j)) / 2." },
+    ],
+    code: [
+      { text: "while n > 2:", line: 0 },
+      { text: "  Q[i][j] = (n-2)*d[i][j] - R[i] - R[j];", line: 1, trigger: "qmatrix" },
+      { text: "  (i,j) = argmin(Q);", line: 2, trigger: "qmatrix" },
+      { text: "  limbI = d[i][j]/2 + (R[i]-R[j])/(2*(n-2));", line: 3, trigger: "join" },
+      { text: "  limbJ = d[i][j] - limbI;", line: 4, trigger: "join" },
+      { text: "  d[new][k] = (d[i][k]+d[j][k]-d[i][j])/2;", line: 5 },
+    ]
+  },
+
+  maxparsimony: {
+    name: "Maximum Parsimony",
+    category: "phylo",
+    complexity: { best: "O(k! × n)", avg: "O(k! × n)", worst: "O(k! × n)", space: "O(k²)" },
+    complexityClass: { best: "red", avg: "red", worst: "red", space: "green" },
+    description: "Maximum Parsimony searches for the tree topology that requires the fewest evolutionary changes (mutations) to explain the observed sequences. Uses Fitch's algorithm to score each topology per site, summing over all sites.",
+    useCases: ["Morphological phylogenetics", "Small taxon sets", "When minimum mutations assumption holds"],
+    steps: [
+      { title: "Generate Topologies", text: "For k taxa, enumerate all possible unrooted binary tree topologies (15 for 4 taxa, 105 for 5 taxa)." },
+      { title: "Fitch Scoring", text: "For each site in the sequences, count the minimum mutations needed on that topology using Fitch parsimony." },
+      { title: "Sum Sites", text: "Sum parsimony scores across all sites to get the total score for this topology." },
+      { title: "Best Tree", text: "The topology with the minimum total score is the most parsimonious tree." },
+    ],
+    code: [
+      { text: "for tree in all_topologies:", line: 0, trigger: "score" },
+      { text: "  total = 0;", line: 1 },
+      { text: "  for site in sequence_sites:", line: 2 },
+      { text: "    total += fitch_parsimony(tree, site);", line: 3, trigger: "score" },
+      { text: "  // Fitch: count minimum mutations via", line: 4 },
+      { text: "  // set intersection/union at internal nodes", line: 5 },
+      { text: "  if total < best: best = total; bestTree = tree;", line: 6, trigger: "score" },
+    ]
+  },
+
+  maxlikelihood: {
+    name: "Maximum Likelihood",
+    category: "phylo",
+    complexity: { best: "O(k! × n)", avg: "O(k! × n)", worst: "O(k! × n)", space: "O(k²)" },
+    complexityClass: { best: "red", avg: "red", worst: "red", space: "green" },
+    description: "Maximum Likelihood finds the tree topology and branch lengths that maximize the probability of observing the given sequences under a substitution model (Jukes-Cantor). The log-likelihood is computed per site and summed.",
+    useCases: ["Gold-standard phylogenetics", "Statistical model-based tree building", "Bootstrap analysis"],
+    steps: [
+      { title: "Choose Model", text: "Jukes-Cantor: P(same) = ¼ + ¾e^(-4t/3), P(diff) = ¼ - ¼e^(-4t/3)." },
+      { title: "Compute Site Likelihood", text: "For each site, compute the probability of the observed bases given the tree topology." },
+      { title: "Sum Log-Likelihoods", text: "lnL(tree) = Σ_site log P(site | tree). Maximizing lnL is equivalent." },
+      { title: "Best Tree", text: "The tree with the highest lnL is the maximum likelihood tree." },
+    ],
+    code: [
+      { text: "// Jukes-Cantor substitution model", line: 0, trigger: "init" },
+      { text: "pSame = 0.25 + 0.75*exp(-4*t/3);", line: 1, trigger: "likelihood" },
+      { text: "pDiff = 0.25 - 0.25*exp(-4*t/3);", line: 2 },
+      { text: "for tree in topologies:", line: 3 },
+      { text: "  lnL = sum over sites of log(P(site|tree));", line: 4, trigger: "likelihood" },
+      { text: "  if lnL > best: bestTree = tree;", line: 5 },
+    ]
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // CLUSTERING
+  // ══════════════════════════════════════════════════════════
+
+  kmeans: {
+    name: "k-Means Clustering",
+    category: "clustering",
+    complexity: { best: "O(nki)", avg: "O(nki)", worst: "O(n²k)", space: "O(n+k)" },
+    complexityClass: { best: "green", avg: "green", worst: "red", space: "green" },
+    description: "k-Means partitions n points into k clusters by iterating two steps: assign each point to its nearest centroid, then recompute centroids as cluster means. Uses k-means++ initialization for better convergence. Converges when no assignments change.",
+    useCases: ["Image segmentation", "Customer segmentation", "Bioinformatics: expression clustering", "Vector quantization"],
+    steps: [
+      { title: "Initialize Centroids", text: "k-means++ seeding: pick first centroid randomly, then each subsequent centroid with probability proportional to squared distance from existing centroids." },
+      { title: "Assign Points", text: "Assign each point to the nearest centroid (by Euclidean distance)." },
+      { title: "Update Centroids", text: "Move each centroid to the mean of its assigned points." },
+      { title: "Repeat Until Convergence", text: "Repeat assign + update until no point changes cluster (or max iterations reached)." },
+    ],
+    code: [
+      { text: "centroids = kmeanspp_init(points, k);", line: 0, trigger: "init" },
+      { text: "repeat:", line: 1 },
+      { text: "  // Assign step", line: 2, trigger: "assign" },
+      { text: "  for p in points:", line: 3 },
+      { text: "    p.cluster = argmin_c dist(p, centroids[c]);", line: 4, trigger: "assign" },
+      { text: "  // Update step", line: 5, trigger: "update" },
+      { text: "  for c in 0..k: centroids[c] = mean(cluster_c);", line: 6, trigger: "update" },
+      { text: "until no assignments changed;", line: 7, trigger: "result" },
+    ]
+  },
+
+  hierarchicalclustering: {
+    name: "Hierarchical Clustering",
+    category: "clustering",
+    complexity: { best: "O(n²)", avg: "O(n² log n)", worst: "O(n³)", space: "O(n²)" },
+    complexityClass: { best: "red", avg: "red", worst: "red", space: "yellow" },
+    description: "Agglomerative hierarchical clustering starts with each point as its own cluster and repeatedly merges the two closest clusters, building a tree (dendogram). The merge order and distances form the dendogram. Uses average linkage by default.",
+    useCases: ["Gene expression analysis", "Document clustering", "Exploratory data analysis", "Bioinformatics dendograms"],
+    steps: [
+      { title: "Initialize", text: "Each point is its own cluster. Compute pairwise distance matrix." },
+      { title: "Find Closest", text: "Identify the two clusters with the smallest inter-cluster distance (avg-linkage: mean of all pairs)." },
+      { title: "Merge", text: "Merge the two closest clusters into a single cluster." },
+      { title: "Update Distances", text: "Recompute distances from the new cluster to all remaining clusters." },
+      { title: "Repeat", text: "Repeat until all points are in one cluster. The merge history forms the dendogram." },
+    ],
+    code: [
+      { text: "clusters = [{p} for p in points];", line: 0, trigger: "init" },
+      { text: "while clusters.length > 1:", line: 1 },
+      { text: "  (a,b) = argmin(inter_cluster_dist);", line: 2, trigger: "merge" },
+      { text: "  // avg-link: mean of all cross-pairs", line: 3 },
+      { text: "  new = merge(a, b);", line: 4, trigger: "merge" },
+      { text: "  update_distances(new, remaining);", line: 5 },
+      { text: "// Result: dendogram showing merge history", line: 6, trigger: "result" },
+    ]
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // RED-BLACK TREE
+  // ══════════════════════════════════════════════════════════
+
+  rbtree: {
+    name: "Red-Black Tree",
+    category: "rbtree",
+    complexity: { best: "O(log n)", avg: "O(log n)", worst: "O(log n)", space: "O(n)" },
+    complexityClass: { best: "green", avg: "green", worst: "green", space: "green" },
+    description: "A Red-Black Tree is a self-balancing BST where each node is colored red or black. Four properties ensure the tree remains balanced: (1) every node is red/black, (2) root is black, (3) no two consecutive red nodes, (4) all root→leaf paths have the same number of black nodes.",
+    useCases: ["C++ std::map / std::set", "Java TreeMap/TreeSet", "Linux kernel (scheduling)", "Database indexes"],
+    steps: [
+      { title: "Insert as Red", text: "Insert like a normal BST, coloring the new node red." },
+      { title: "Case 1: Red Uncle", text: "If uncle is red: recolor parent, uncle → black; grandparent → red. Move up." },
+      { title: "Case 2: Black Uncle (triangle)", text: "Rotate at parent to convert to Case 3." },
+      { title: "Case 3: Black Uncle (line)", text: "Rotate at grandparent, swap colors of parent and grandparent." },
+      { title: "Root Fix", text: "Always set root to black at the end." },
+    ],
+    code: [
+      { text: "insert(val):", line: 0, trigger: "insert" },
+      { text: "  bst_insert(val); color = RED;", line: 1, trigger: "insert" },
+      { text: "  while parent.color == RED:", line: 2 },
+      { text: "    if uncle.color == RED:  // Case 1", line: 3, trigger: "recolor" },
+      { text: "      recolor(parent, uncle, grandparent);", line: 4, trigger: "recolor" },
+      { text: "    else if triangle:  // Case 2", line: 5 },
+      { text: "      rotate(parent);  // → Case 3", line: 6, trigger: "rotate" },
+      { text: "    else:  // Case 3", line: 7 },
+      { text: "      rotate(grandparent); recolor();", line: 8, trigger: "rotate" },
+      { text: "  root.color = BLACK;", line: 9, trigger: "done" },
     ]
   }
 };
