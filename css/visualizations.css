@@ -6,13 +6,9 @@
 
 /* ── Shared Visualization Area ── */
 .viz-area {
-  flex:             1;
-  overflow:         hidden;
-  position:         relative;
-  display:          flex;
-  align-items:      center;
-  justify-content:  center;
-  padding:          16px;
+  flex:     1;
+  overflow: hidden;
+  position: relative;   /* containing block for all absolute children */
 }
 
 /* Subtle dot-grid background texture */
@@ -25,6 +21,7 @@
     linear-gradient(90deg, var(--bg-2) 1px, transparent 1px);
   background-size: 32px 32px;
   opacity: 0.4;
+  pointer-events: none;
 }
 
 /* ── Empty state placeholder ── */
@@ -38,24 +35,26 @@
   font-size: 12px;
   text-align: center;
   position: absolute;
+  inset:    0;
   z-index:  1;
 }
 
 .viz-placeholder .big-icon { font-size: 48px; margin-bottom: 8px; }
 
 /* ============================================================
-   SORTING BARS
+   ALL VIZ PANELS — absolute fill, JS controls display
    ============================================================ */
+
+/* Sorting bars */
 #sort-container {
-  display:         flex;
+  position:        absolute;
+  inset:           0;
+  z-index:         1;
+  display:         none;   /* JS sets display:flex when active */
   align-items:     flex-end;
   justify-content: center;
   gap:             2px;
-  height:          100%;
-  width:           100%;
-  position:        relative;
-  z-index:         1;
-  padding:         0 8px 24px;
+  padding:         16px 16px 40px;
 }
 
 .sort-bar {
@@ -67,8 +66,6 @@
   background:    var(--accent-blue);
   position:      relative;
 }
-
-/* Value label below each bar */
 .sort-bar::after {
   content:   attr(data-val);
   position:  absolute;
@@ -79,47 +76,75 @@
   color:     var(--text-muted);
   white-space: nowrap;
 }
-
-/* State-driven color classes */
-.sort-bar.comparing { background: var(--accent-yellow); box-shadow: 0 0 12px rgba(210, 153, 34,  0.5); }
-.sort-bar.swapping  { background: var(--accent-orange); box-shadow: 0 0 12px rgba(247, 129, 102, 0.5); }
-.sort-bar.sorted    { background: var(--accent-green);  box-shadow: 0 0 8px  rgba(63,  185, 80,  0.3); }
-.sort-bar.pivot     { background: var(--accent-purple); box-shadow: 0 0 12px rgba(188, 140, 255, 0.5); }
+.sort-bar.comparing { background: var(--accent-yellow); box-shadow: 0 0 12px rgba(210,153,34,.5); }
+.sort-bar.swapping  { background: var(--accent-orange); box-shadow: 0 0 12px rgba(247,129,102,.5); }
+.sort-bar.sorted    { background: var(--accent-green);  box-shadow: 0 0 8px  rgba(63,185,80,.3); }
+.sort-bar.pivot     { background: var(--accent-purple); box-shadow: 0 0 12px rgba(188,140,255,.5); }
 .sort-bar.current   { background: var(--accent-cyan);   box-shadow: var(--glow-cyan); }
 
-/* ============================================================
-   CANVAS (Graph & Tree)
-   ============================================================ */
+/* Canvas (graph / tree / phylo / clustering) */
 #canvas-container {
-  position: relative;
+  position: absolute;
+  inset:    16px;
   z-index:  1;
-  display:  none;
+  display:  none;   /* JS sets display:block when active */
 }
 
+/* When tree interactive mode: shrink canvas bottom to make room for ctrl bar */
+#canvas-container.has-tree-ctrl { bottom: 80px; }
+
 #viz-canvas {
+  display:       block;
+  width:         100%;
+  height:        100%;
   border-radius: var(--radius);
   border:        1px solid var(--border);
   background:    var(--bg-1);
 }
 
-/* ============================================================
-   OTHER VISUALIZATIONS WRAPPER
-   ============================================================ */
+/* k-Means: crosshair cursor to hint that clicking adds points */
+body.kmeans-active #viz-canvas { cursor: crosshair; }
+
+/* DOM content: alignment / BS / Fib / Knapsack / MSA */
 #other-container {
-  position:        relative;
-  z-index:         1;
-  width:           100%;
-  height:          100%;
-  display:         none;
-  flex-direction:  column;
-  gap:             12px;
-  overflow-y:      auto;
-  padding:         8px;
+  position:       absolute;
+  inset:          0;
+  z-index:        1;
+  display:        none;         /* JS sets display:flex when active */
+  flex-direction: column;
+  overflow:       hidden;       /* child wrappers manage their own scroll */
+  padding:        16px;
+  box-sizing:     border-box;
 }
 
-/* ============================================================
-   BINARY SEARCH
-   ============================================================ */
+/* Tree interactive controls strip — always at the bottom, never overlaps canvas */
+#tree-ctrl-bar {
+  position:    absolute;
+  bottom:      0;
+  left:        0;
+  right:       0;
+  height:      64px;
+  z-index:     2;              /* above canvas */
+  display:     none;           /* JS sets display:flex when active */
+  align-items: center;
+  flex-wrap:   wrap;
+  gap:         8px;
+  padding:     0 16px;
+  background:  var(--bg-1);
+  border-top:  1px solid var(--border);
+}
+
+/* ── Inner scroll wrapper for DOM-content viz (BS / Fib / Knapsack) ── */
+.other-scroll-wrap {
+  flex:           1 1 0;
+  min-height:     0;
+  width:          100%;
+  overflow-y:     auto;
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-start;
+  gap:            12px;
+}
 .bs-array {
   display:         flex;
   gap:             4px;
@@ -219,13 +244,13 @@
    SEQUENCE ALIGNMENT
    ============================================================ */
 .align-wrap {
-  width:          100%;
-  height:         100%;
+  flex:           1 1 0;
+  min-height:     0;
+  width:          100%;         /* fill container horizontally */
   display:        flex;
   flex-direction: column;
-  gap:            10px;
-  overflow-y:     auto;
-  padding:        4px;
+  gap:            8px;
+  overflow:       hidden;
 }
 
 .align-title {
@@ -242,8 +267,11 @@
 }
 
 .align-table-wrap {
-  overflow: auto;
-  max-height: 55%;
+  /* Fill the space left inside .align-wrap after title+subtitle rows.
+     flex:1 + min-height:0 is the correct pattern for a scrollable flex child. */
+  flex:       1 1 0;
+  min-height: 0;
+  overflow:   auto;
 }
 
 .align-matrix {

@@ -139,18 +139,38 @@ class App {
     // Canvas sizing
     this._resizeCanvas();
     window.addEventListener('resize', () => this._resizeCanvas());
+
+    // k-Means: click on canvas to add a data point
+    document.getElementById('viz-canvas').addEventListener('click', e => {
+      if (this.currentAlgo !== 'kmeans') return;
+      const canvas = e.currentTarget;
+      const rect   = canvas.getBoundingClientRect();
+      const PAD    = 40;
+      // Convert pixel → normalised [0,1] using same formula as drawKMeans
+      const nx = (e.clientX - rect.left  - PAD) / (canvas.width  - 2 * PAD);
+      const ny = (e.clientY - rect.top   - PAD) / (canvas.height - 2 * PAD);
+      if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+      // Add point (unassigned cluster = -1) and reload the algorithm
+      this.clusterPoints.push({ x: parseFloat(nx.toFixed(3)), y: parseFloat(ny.toFixed(3)) });
+      this.engine.stop();
+      this._loadClusteringAlgo('kmeans');
+      document.getElementById('current-step-msg').textContent =
+        `Point added — ${this.clusterPoints.length} total. Press ▶ Play to run k-Means.`;
+    });
   }
 
   // ── Canvas resize ─────────────────────────────────────────
   _resizeCanvas() {
-    const vizArea   = document.getElementById('viz-area');
-    const container = document.getElementById('canvas-container');
-    const w = vizArea.clientWidth  - 32;
-    const h = vizArea.clientHeight - 32;
-    this.renderer.resize(w, h);
-    container.style.width  = w + 'px';
-    container.style.height = h + 'px';
-    if (this.currentAlgo) this._refreshCurrentFrame();
+    // Use rAF so the layout engine has applied display:block before we measure.
+    requestAnimationFrame(() => {
+      const container = document.getElementById('canvas-container');
+      const w = Math.max(100, container.clientWidth);
+      const h = Math.max(100, container.clientHeight);
+      if (w > 0 && h > 0) {
+        this.renderer.resize(w, h);
+        if (this.currentAlgo) this._refreshCurrentFrame();
+      }
+    });
   }
 
   // ── Algorithm Selection ───────────────────────────────────
@@ -186,6 +206,9 @@ class App {
       document.getElementById(id).disabled = false
     );
 
+    // k-Means crosshair cursor
+    document.body.classList.toggle('kmeans-active', algo === 'kmeans');
+
     // Graph / tree setup
     const isGraph    = ['bfs','dfs','dijkstra','astar'].includes(algo);
     const isTree     = ['bst','avl'].includes(algo);
@@ -209,24 +232,31 @@ class App {
 
   // ── Panel visibility ──────────────────────────────────────
   _showCorrectVizPanel(category) {
-    document.getElementById('sort-container').style.display   = 'none';
-    document.getElementById('canvas-container').style.display = 'none';
-    document.getElementById('other-container').style.display  = 'none';
-    document.getElementById('viz-placeholder').style.display  = 'none';
+    // Hide everything first
+    document.getElementById('sort-container').style.display    = 'none';
+    document.getElementById('canvas-container').style.display  = 'none';
+    document.getElementById('canvas-container').classList.remove('has-tree-ctrl');
+    document.getElementById('tree-ctrl-bar').style.display     = 'none';
+    document.getElementById('tree-ctrl-bar').innerHTML         = '';
+    document.getElementById('viz-placeholder').style.display   = 'none';
+
+    // other-container: remove ALL inline styles (clears any leftover cssText),
+    // then hide via inline display so CSS rule's display:none doesn't fight JS.
+    const oc = document.getElementById('other-container');
+    oc.removeAttribute('style');
+    oc.style.display = 'none';
 
     if (category === 'sorting') {
-      document.getElementById('sort-container').style.display = '';
-    } else if (category === 'graph' || category === 'tree') {
-      document.getElementById('canvas-container').style.display = '';
-      this._resizeCanvas();
-    } else if (category === 'phylo' || category === 'clustering' || category === 'rbtree') {
-      document.getElementById('canvas-container').style.display = '';
+      document.getElementById('sort-container').style.display = 'flex';
+    } else if (['graph', 'tree', 'phylo', 'clustering', 'rbtree'].includes(category)) {
+      document.getElementById('canvas-container').style.display = 'block';
       this._resizeCanvas();
     } else if (category === 'alignment' || category === 'database') {
-      document.getElementById('other-container').style.display = 'flex';
-      this.alignRenderer.container = document.getElementById('other-container');
+      oc.style.display = 'flex';
+      this.alignRenderer.container = oc;
     } else {
-      document.getElementById('other-container').style.display = 'flex';
+      // BS, Fib, Knapsack, etc.
+      oc.style.display = 'flex';
     }
   }
 
@@ -437,25 +467,28 @@ class App {
     if (!gen) return;
     const count = this.engine.load(gen());
     document.getElementById('current-step-msg').textContent =
-      `${count} frames — ${algo === 'kmeans' ? 'k=' + this.kmeansK + ', ' + this.clusterPoints.length + ' points' : this.hierPoints.length + ' points'}. Press ▶ Play.`;
+      algo === 'kmeans'
+        ? `${count} steps — k=${this.kmeansK}, ${this.clusterPoints.length} points. Click canvas to add points. Press ▶ Play.`
+        : `${count} steps — ${this.hierPoints.length} points. Press ▶ Play.`;
   }
 
   // ── Red-Black Tree interactive ────────────────────────────
   _initRBTreeViz() {
-    document.getElementById('canvas-container').style.display = 'flex';
-    document.getElementById('other-container').style.display  = 'flex';
-    const other = document.getElementById('other-container');
-    other.innerHTML = '';
-    other.style.cssText = 'max-height:80px; flex-direction:row; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 16px;';
+    document.getElementById('canvas-container').style.display = 'block';
+    document.getElementById('canvas-container').classList.add('has-tree-ctrl');
+    document.getElementById('tree-ctrl-bar').style.display = 'flex';
+    const bar = document.getElementById('tree-ctrl-bar');
+    bar.innerHTML = '';
 
     const lbl = document.createElement('span');
     lbl.style.cssText = 'color:var(--text-muted); font-size:11px;';
-    lbl.textContent = 'Red-Black Tree:'; other.appendChild(lbl);
+    lbl.textContent = 'Red-Black Tree:';
+    bar.appendChild(lbl);
 
     const input = document.createElement('input');
     input.type = 'number'; input.placeholder = 'Value (1-99)';
     input.className = 'form-input'; input.style.width = '130px';
-    other.appendChild(input);
+    bar.appendChild(input);
 
     const doInsert = () => {
       const v = parseInt(input.value);
@@ -478,13 +511,14 @@ class App {
 
     const ins = document.createElement('button');
     ins.className = 'btn btn-primary'; ins.textContent = '+ Insert';
-    ins.onclick = doInsert; other.appendChild(ins);
+    ins.onclick = doInsert;
+    bar.appendChild(ins);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') doInsert(); });
 
     const clr = document.createElement('button');
     clr.className = 'btn'; clr.textContent = '🗑 Clear';
     clr.onclick = () => { this.rbTree = new RBTree(); this.renderer.drawRBTree(null); };
-    other.appendChild(clr);
+    bar.appendChild(clr);
 
     const rnd = document.createElement('button');
     rnd.className = 'btn'; rnd.textContent = '🎲 Auto-Demo';
@@ -504,7 +538,7 @@ class App {
       };
       go();
     };
-    other.appendChild(rnd);
+    bar.appendChild(rnd);
 
     ['btn-play','btn-step','btn-next','btn-reset'].forEach(id =>
       document.getElementById(id).disabled = true
@@ -516,11 +550,15 @@ class App {
   _renderBSViz(arr, state) {
     const container = document.getElementById('other-container');
     container.innerHTML = '';
+    // Use a flex scroll wrapper so content fills the absolute container properly
+    const wrap = document.createElement('div');
+    wrap.className = 'other-scroll-wrap';
+    container.appendChild(wrap);
 
     const title = document.createElement('div');
     title.style.cssText = 'font-size:12px; color:var(--text-muted); margin-bottom:8px;';
     title.textContent = `Target: ${this.bsTarget}`;
-    container.appendChild(title);
+    wrap.appendChild(title);
 
     const row = document.createElement('div');
     row.className = 'bs-array';
@@ -533,7 +571,7 @@ class App {
       else if (state.mid   === i)  cell.classList.add('mid');
       row.appendChild(cell);
     }
-    container.appendChild(row);
+    wrap.appendChild(row);
 
     // Pointer row (L / M / R labels)
     const ptrs = document.createElement('div');
@@ -551,22 +589,25 @@ class App {
       if (labels.includes('R')) p.style.color = '#f78166';
       ptrs.appendChild(p);
     }
-    container.appendChild(ptrs);
+    wrap.appendChild(ptrs);
 
     const stats = document.createElement('div');
-    stats.style.cssText = 'margin-top:12px; font-size:11px; color:var(--text-muted);';
+    stats.style.cssText = 'font-size:11px; color:var(--text-muted);';
     stats.textContent = `Comparisons: ${state.cmps || 0}`;
-    container.appendChild(stats);
+    wrap.appendChild(stats);
   }
 
   _renderFibViz(state) {
     const container = document.getElementById('other-container');
     container.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'other-scroll-wrap';
+    container.appendChild(wrap);
 
     const title = document.createElement('div');
-    title.style.cssText = 'font-size:12px; color:var(--text-muted); margin-bottom:12px; text-align:center;';
+    title.style.cssText = 'font-size:12px; color:var(--text-muted); text-align:center;';
     title.textContent = `Fibonacci DP Table — Computing fib(${this.fibN})`;
-    container.appendChild(title);
+    wrap.appendChild(title);
 
     const row = document.createElement('div');
     row.className = 'fib-cells';
@@ -579,28 +620,31 @@ class App {
                         <div class="fib-value">${state.dp && state.dp[i] >= 0 ? state.dp[i] : '?'}</div>`;
       row.appendChild(cell);
     }
-    container.appendChild(row);
+    wrap.appendChild(row);
 
     const hint = document.createElement('div');
-    hint.style.cssText = 'margin-top:16px; font-size:11px; color:var(--text-muted); text-align:center;';
+    hint.style.cssText = 'font-size:11px; color:var(--text-muted); text-align:center;';
     hint.textContent = 'dp[i] = dp[i-1] + dp[i-2]';
-    container.appendChild(hint);
+    wrap.appendChild(hint);
   }
 
   _renderKnapsackViz(state) {
     const container = document.getElementById('other-container');
     container.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'other-scroll-wrap';
+    container.appendChild(wrap);
 
     // Item chips
     const itemsDiv = document.createElement('div');
-    itemsDiv.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;';
+    itemsDiv.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap;';
     for (const item of this.knapsackItems) {
       const chip = document.createElement('div');
       chip.style.cssText = 'background:var(--bg-3); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:11px;';
       chip.innerHTML = `<strong style="color:var(--accent-cyan)">${item.name}</strong><br>w=${item.weight} v=${item.value}`;
       itemsDiv.appendChild(chip);
     }
-    container.appendChild(itemsDiv);
+    wrap.appendChild(itemsDiv);
 
     // DP table
     const tableWrap = document.createElement('div');
@@ -636,31 +680,32 @@ class App {
     }
     table.appendChild(tbody);
     tableWrap.appendChild(table);
-    container.appendChild(tableWrap);
+    wrap.appendChild(tableWrap);
   }
 
   // ── Tree Interactive Controls ─────────────────────────────
   _initTreeViz() {
-    document.getElementById('other-container').style.display  = 'flex';
-    document.getElementById('canvas-container').style.display = '';
+    // Show canvas; add modifier class so canvas leaves room for the control strip
+    document.getElementById('canvas-container').style.display = 'block';
+    document.getElementById('canvas-container').classList.add('has-tree-ctrl');
+    document.getElementById('tree-ctrl-bar').style.display = 'flex';
     if      (this.currentAlgo === 'bst') this._renderBSTControls();
     else if (this.currentAlgo === 'avl') this._renderAVLControls();
   }
 
   _renderBSTControls() {
-    const other = document.getElementById('other-container');
-    other.innerHTML = '';
-    other.style.cssText = 'max-height:80px; flex-direction:row; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 16px;';
+    const bar = document.getElementById('tree-ctrl-bar');
+    bar.innerHTML = '';
 
     const label = document.createElement('span');
     label.style.cssText = 'color:var(--text-muted); font-size:11px;';
     label.textContent = 'BST Operations:';
-    other.appendChild(label);
+    bar.appendChild(label);
 
     const input = document.createElement('input');
     input.type = 'number'; input.placeholder = 'Value (1-99)';
     input.className = 'form-input'; input.style.width = '130px';
-    other.appendChild(input);
+    bar.appendChild(input);
 
     const insertBtn = document.createElement('button');
     insertBtn.className = 'btn btn-primary'; insertBtn.textContent = '+ Insert';
@@ -668,7 +713,7 @@ class App {
       const v = parseInt(input.value);
       if (!isNaN(v)) { this.bstTree.insert(v); this.renderer.drawTree(this.bstTree.root); input.value = ''; }
     };
-    other.appendChild(insertBtn);
+    bar.appendChild(insertBtn);
 
     const searchBtn = document.createElement('button');
     searchBtn.className = 'btn'; searchBtn.textContent = '🔍 Search';
@@ -687,12 +732,12 @@ class App {
         show();
       }
     };
-    other.appendChild(searchBtn);
+    bar.appendChild(searchBtn);
 
     const clearBtn = document.createElement('button');
     clearBtn.className = 'btn'; clearBtn.textContent = '🗑 Clear';
     clearBtn.onclick = () => { this.bstTree = new BSTree(); this.renderer.drawTree(null); };
-    other.appendChild(clearBtn);
+    bar.appendChild(clearBtn);
 
     const randomBtn = document.createElement('button');
     randomBtn.className = 'btn'; randomBtn.textContent = '🎲 Random';
@@ -702,23 +747,22 @@ class App {
       for (const v of vals) this.bstTree.insert(v);
       this.renderer.drawTree(this.bstTree.root);
     };
-    other.appendChild(randomBtn);
+    bar.appendChild(randomBtn);
   }
 
   _renderAVLControls() {
-    const other = document.getElementById('other-container');
-    other.innerHTML = '';
-    other.style.cssText = 'max-height:80px; flex-direction:row; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 16px;';
+    const bar = document.getElementById('tree-ctrl-bar');
+    bar.innerHTML = '';
 
     const label = document.createElement('span');
     label.style.cssText = 'color:var(--text-muted); font-size:11px;';
     label.textContent = 'AVL Operations:';
-    other.appendChild(label);
+    bar.appendChild(label);
 
     const input = document.createElement('input');
     input.type = 'number'; input.placeholder = 'Value (1-99)';
     input.className = 'form-input'; input.style.width = '130px';
-    other.appendChild(input);
+    bar.appendChild(input);
 
     const insertBtn = document.createElement('button');
     insertBtn.className = 'btn btn-primary'; insertBtn.textContent = '+ Insert (Auto-balance)';
@@ -743,12 +787,12 @@ class App {
         input.value = '';
       }
     };
-    other.appendChild(insertBtn);
+    bar.appendChild(insertBtn);
 
     const clearBtn = document.createElement('button');
     clearBtn.className = 'btn'; clearBtn.textContent = '🗑 Clear';
     clearBtn.onclick = () => { this.avlRoot = null; this.renderer.drawTree(null); };
-    other.appendChild(clearBtn);
+    bar.appendChild(clearBtn);
 
     const randomBtn = document.createElement('button');
     randomBtn.className = 'btn'; randomBtn.textContent = '🎲 Random';
@@ -768,7 +812,7 @@ class App {
       };
       insert();
     };
-    other.appendChild(randomBtn);
+    bar.appendChild(randomBtn);
   }
 
   _populateGraphDropdowns() {

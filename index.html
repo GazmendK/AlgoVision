@@ -168,12 +168,16 @@
       <div id="sort-container" style="display:none;"></div>
 
       <!-- Graph & Tree: Canvas -->
-      <div id="canvas-container">
+      <div id="canvas-container" style="display:none;">
         <canvas id="viz-canvas"></canvas>
       </div>
 
-      <!-- Binary Search / Fibonacci / Knapsack -->
-      <div id="other-container"></div>
+      <!-- Alignment / BS / Fib / Knapsack / MSA / etc. -->
+      <div id="other-container" style="display:none;"></div>
+
+      <!-- Tree interactive controls (BST / AVL / RBTree) — dedicated strip,
+           never mixes with other-container so no cssText contamination -->
+      <div id="tree-ctrl-bar" style="display:none;"></div>
 
     </div><!-- .viz-area -->
 

@@ -197,8 +197,15 @@ class AlignmentRenderer {
         if (pathSet.has(`${r},${c}`)) cell.classList.add('dp-path');
         else if (type === 'fill' && r === i && c === j) {
           cell.classList.add(frame.isMatch ? 'dp-active-match' : 'dp-active');
-          // Scroll into view smoothly
-          cell.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          // Scroll only within the nearest overflow-auto ancestor (align-table-wrap),
+          // not the entire page — prevents the container from jumping/shifting.
+          const wrap = cell.closest('.align-table-wrap') || cell.closest('#other-container');
+          if (wrap) {
+            const cellRect = cell.getBoundingClientRect();
+            const wrapRect = wrap.getBoundingClientRect();
+            if (cellRect.bottom > wrapRect.bottom) wrap.scrollTop += cellRect.bottom - wrapRect.bottom + 8;
+            if (cellRect.right  > wrapRect.right)  wrap.scrollLeft += cellRect.right  - wrapRect.right  + 8;
+          }
         } else if (type === 'fill' && dp[r][c] !== 0 && r > 0 && c > 0) {
           cell.classList.add('dp-filled');
         }
