@@ -276,18 +276,18 @@ body.kmeans-active #viz-canvas { cursor: crosshair; }
 
 .align-matrix {
   border-collapse: collapse;
-  font-size:       11px;
+  font-size:       14px;
   font-family:     var(--font-mono);
 }
 
-.align-matrix.compact { font-size: 10px; }
+.align-matrix.compact { font-size: 11px; }
 
 .align-matrix th,
 .align-matrix td {
   border:     1px solid var(--border);
-  padding:    3px 6px;
+  padding:    7px 12px;
   text-align: center;
-  min-width:  30px;
+  min-width:  44px;
   transition: background 0.15s, color 0.15s;
 }
 
